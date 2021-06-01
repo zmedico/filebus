@@ -72,7 +72,7 @@ class FileBus:
             stdin_buffer.extend(result)
         if not new_bytes.done():
             new_bytes.set_result(bool(result))
-        result is not None or eof.done() or eof.set_result(result)
+        result != b'' or eof.done() or eof.set_result(result)
         logging.debug("_stdin_read: %s", repr(result))
 
     def _lock_filename(self):
