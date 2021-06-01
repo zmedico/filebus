@@ -104,7 +104,7 @@ class SocketBurstDampenerTest(unittest.TestCase):
             proc.join(0)
             if proc.exitcode is not None:
                 break
-            await asyncio.sleep(0.1, loop=loop)
+            await asyncio.sleep(0.1)
 
     def _subprocess(self, args, pr, pw):
         # Force instantiation of a new event loop policy as a workaround
