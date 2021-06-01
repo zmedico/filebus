@@ -22,7 +22,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 __project__ = "filebus"
 __description__ = "Multicast communication channels based on regular files"
 __author__ = "Zac Medico"
@@ -136,6 +136,8 @@ class FileBus:
 
                 if new_bytes.done():
                     if eof.done():
+                        if len(stdin_buffer):
+                            await self._flush_buffer(stdin_buffer)
                         break
 
                 else:
