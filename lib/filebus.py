@@ -174,19 +174,18 @@ class FileBus:
                 else:
                     self._file_modified_future = None
 
-                with self._lock_filename() as lock:
+                with self._lock_filename() as lock, \
+                    open(self._args.filename, 'rb') as fileobj:
+                    st = os.fstat(fileobj.fileno())
+                    if st.st_size > 0 and not (
+                        previous_st and previous_st.st_ino == st.st_ino
+                    ):
+                        with tarfile.open(self._args.filename, fileobj=fileobj, mode="r") as tar:
 
-                    with tarfile.open(self._args.filename, mode="r") as tar:
-                        st = os.fstat(tar.fileobj.fileno())
-                        if st.st_size > 0 and not (
-                            previous_st and previous_st.st_ino == st.st_ino
-                        ):
                             for tarinfo in tar:
                                 reader = tar.extractfile(tarinfo)
                                 data = reader.read()
-                                if tarinfo.name == "from_server" and not (
-                                    previous_st and previous_st.st_ino == st.st_ino
-                                ):
+                                if tarinfo.name == "from_server":
                                     previous_st = st
                                     sys.stdout.buffer.write(data)
                                     sys.stdout.buffer.flush()
