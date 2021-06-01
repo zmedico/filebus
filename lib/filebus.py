@@ -22,7 +22,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 __project__ = "filebus"
 __description__ = "Multicast communication channels based on regular files"
 __author__ = "Zac Medico"
@@ -130,7 +130,7 @@ class FileBus:
                     if (
                         not new_bytes.done()
                         or not new_bytes.result()
-                        or len(stdin_buffer) >= BUFSIZE
+                        or len(stdin_buffer) >= self._args.block_size
                     ):
                         await self._flush_buffer(stdin_buffer)
 
@@ -215,6 +215,15 @@ def parse_args(argv=None):
         prog=os.path.basename(argv[0]),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="  {} {}\n  {}".format(__project__, __version__, __description__),
+    )
+
+    root_parser.add_argument(
+        "--block-size",
+        action="store",
+        metavar="N",
+        type=int,
+        default=BUFSIZE,
+        help="maximum block size in units of bytes",
     )
 
     root_parser.add_argument(

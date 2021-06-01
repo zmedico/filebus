@@ -46,9 +46,9 @@ backpressure), and that's on the TODO list.
 
 ## Usage
 ```
-usage: filebus [-h] [--no-file-monitoring] [--filename FILE] [--sleep-interval N] [-v] {producer,consumer} ...
+usage: filebus [-h] [--block-size N] [--no-file-monitoring] [--filename FILE] [--sleep-interval N] [-v] {producer,consumer} ...
 
-  filebus 0.0.1
+  filebus 0.0.4
   Multicast communication channels based on regular files
 
 positional arguments:
@@ -58,6 +58,7 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
+  --block-size N        maximum block size in units of bytes
   --no-file-monitoring  disable filesystem event monitoring
   --filename FILE       path of the data file (the producer updates it via atomic rename)
   --sleep-interval N    check for new messages at least once every N seconds

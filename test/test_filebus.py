@@ -32,6 +32,7 @@ class SocketBurstDampenerTest(unittest.TestCase):
                 [
                     "filebus",
                     "-v",
+                    "--block-size=512",
                     "--filename",
                     data_file.name,
                     "producer",
