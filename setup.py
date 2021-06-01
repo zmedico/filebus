@@ -33,14 +33,6 @@ class PyTest(Command):
 
     def run(self):
         testpath = "./test"
-        os.environ["EPYTHON"] = "python{}.{}".format(
-            sys.version_info.major, sys.version_info.minor
-        )
-        pythonpath = list(filter(None, os.environ.get("PYTHONPATH", "").split(":")))
-        pythonpath.insert(
-            0, os.path.join(os.path.abspath(os.path.dirname(testpath)), "lib")
-        )
-        os.environ["PYTHONPATH"] = ":".join(pythonpath)
         pytest_exe = shutil.which("py.test")
         if pytest_exe is not None:
             test_cmd = (
