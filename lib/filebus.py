@@ -187,22 +187,10 @@ class FileBus:
         loop = asyncio.get_event_loop()
         observer = None
 
-        if self._file_monitoring:
-            observer = watchdog.observers.Observer()
-            observer.schedule(
-                ModifiedFileHandler(
-                    functools.partial(
-                        loop.call_soon_threadsafe, self._file_modified_callback
-                    )
-                ),
-                self._args.filename,
-            )
-            observer.start()
-
         try:
             previous_st = None
             while True:
-                if self._file_monitoring:
+                if self._file_monitoring and observer is not None:
                     self._file_modified_future = loop.create_future()
                 else:
                     self._file_modified_future = None
@@ -212,6 +200,21 @@ class FileBus:
                 except FileNotFoundError:
                     pass
                 else:
+                    # The observer will raise a FileNotFoundError if the file does not exist
+                    # yet, so we do not start it until the above os.stat call succeeds.
+                    if self._file_monitoring and observer is None:
+                        observer = watchdog.observers.Observer()
+                        observer.schedule(
+                            ModifiedFileHandler(
+                                functools.partial(
+                                    loop.call_soon_threadsafe,
+                                    self._file_modified_callback,
+                                )
+                            ),
+                            self._args.filename,
+                        )
+                        observer.start()
+
                     if not (
                         previous_st
                         and previous_st.st_ino == st.st_ino
