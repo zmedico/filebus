@@ -5,6 +5,7 @@ import functools
 import io
 import logging
 import os
+import signal
 import stat
 import sys
 import tarfile
@@ -223,12 +224,15 @@ class FileBus:
                         ) as tar:
 
                             for tarinfo in tar:
-                                reader = tar.extractfile(tarinfo)
-                                data = reader.read()
                                 if tarinfo.name == "from_server":
                                     previous_st = st
-                                    sys.stdout.buffer.write(data)
-                                    sys.stdout.buffer.flush()
+                                    try:
+                                        sys.stdout.buffer.write(tar.extractfile(tarinfo).read())
+                                        sys.stdout.buffer.flush()
+                                    except BrokenPipeError:
+                                        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+                                        os.kill(os.getpid(), signal.SIGPIPE)
+                                        raise
 
                     lock.release(force=True)
 
