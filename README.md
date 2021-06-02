@@ -1,7 +1,8 @@
 # filebus
 
 Filebus implements multicast communication channels based on regular
-files.
+files. It acts as a user space named pipe implementation, which is
+accessed via the pipebus program's stdio stream.
 
 ## Motivation
 
