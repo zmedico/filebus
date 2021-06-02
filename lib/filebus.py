@@ -24,7 +24,7 @@ except ImportError:
 
 __version__ = "0.0.4"
 __project__ = "filebus"
-__description__ = "Multicast communication channels based on regular files"
+__description__ = "A user space multicast named pipe implementation backed by a regular file"
 __author__ = "Zac Medico"
 __email__ = "<zmedico@gmail.com>"
 __copyright__ = "Copyright 2021 Zac Medico"
