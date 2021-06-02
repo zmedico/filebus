@@ -25,7 +25,9 @@ except ImportError:
 
 __version__ = "0.0.4"
 __project__ = "filebus"
-__description__ = "A user space multicast named pipe implementation backed by a regular file"
+__description__ = (
+    "A user space multicast named pipe implementation backed by a regular file"
+)
 __author__ = "Zac Medico"
 __email__ = "<zmedico@gmail.com>"
 __copyright__ = "Copyright 2021 Zac Medico"
@@ -73,7 +75,7 @@ class FileBus:
             stdin_buffer.extend(result)
         if not new_bytes.done():
             new_bytes.set_result(bool(result))
-        result != b'' or eof.done() or eof.set_result(result)
+        result != b"" or eof.done() or eof.set_result(result)
         logging.debug("_stdin_read: %s", repr(result))
 
     def _lock_filename(self):
@@ -209,13 +211,16 @@ class FileBus:
                 else:
                     self._file_modified_future = None
 
-                with self._lock_filename() as lock, \
-                    open(self._args.filename, 'rb') as fileobj:
+                with self._lock_filename() as lock, open(
+                    self._args.filename, "rb"
+                ) as fileobj:
                     st = os.fstat(fileobj.fileno())
                     if st.st_size > 0 and not (
                         previous_st and previous_st.st_ino == st.st_ino
                     ):
-                        with tarfile.open(self._args.filename, fileobj=fileobj, mode="r") as tar:
+                        with tarfile.open(
+                            self._args.filename, fileobj=fileobj, mode="r"
+                        ) as tar:
 
                             for tarinfo in tar:
                                 reader = tar.extractfile(tarinfo)
