@@ -1,8 +1,7 @@
 # filebus
 
-Filebus implements multicast communication channels based on regular
-files. It acts as a user space named pipe implementation, which is
-accessed via the pipebus program's stdio stream.
+A userspace multicast named pipe implementation, backed by a regular
+file, and accessed via a filebus stdio stream.
 
 ## Motivation
 
@@ -49,8 +48,8 @@ backpressure), and that's on the TODO list.
 ```
 usage: filebus [-h] [--block-size N] [--no-file-monitoring] [--filename FILE] [--sleep-interval N] [-v] {producer,consumer} ...
 
-  filebus 0.0.4
-  Multicast communication channels based on regular files
+  filebus 0.0.5
+  A user space multicast named pipe implementation backed by a regular file
 
 positional arguments:
   {producer,consumer}
