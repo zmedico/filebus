@@ -207,23 +207,30 @@ class FileBus:
                 else:
                     self._file_modified_future = None
 
-                with self._lock_filename() as lock, open(
-                    self._args.filename, "rb"
-                ) as fileobj:
-                    st = os.fstat(fileobj.fileno())
-                    if st.st_size > 0 and not (
-                        previous_st and previous_st.st_ino == st.st_ino
+                try:
+                    st = os.stat(self._args.filename)
+                except FileNotFoundError:
+                    pass
+                else:
+                    if not (
+                        previous_st
+                        and previous_st.st_ino == st.st_ino
+                        and previous_st.st_dev == st.st_dev
                     ):
-                        previous_st = st
-                        try:
-                            sys.stdout.buffer.write(fileobj.read())
-                            sys.stdout.buffer.flush()
-                        except BrokenPipeError:
-                            signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-                            os.kill(os.getpid(), signal.SIGPIPE)
-                            raise
+                        with self._lock_filename() as lock, open(
+                            self._args.filename, "rb"
+                        ) as fileobj:
+                            st = os.fstat(fileobj.fileno())
+                            previous_st = st
+                            try:
+                                sys.stdout.buffer.write(fileobj.read())
+                                sys.stdout.buffer.flush()
+                            except BrokenPipeError:
+                                signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+                                os.kill(os.getpid(), signal.SIGPIPE)
+                                raise
 
-                    lock.release(force=True)
+                            lock.release(force=True)
 
                 if self._file_modified_future is None:
                     await asyncio.sleep(self._args.sleep_interval)
