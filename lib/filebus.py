@@ -2,13 +2,11 @@ import argparse
 import array
 import asyncio
 import functools
-import io
 import logging
 import os
 import signal
 import stat
 import sys
-import tarfile
 
 try:
     import fcntl
@@ -24,7 +22,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.0.5"
+__version__ = "0.1.0"
 __project__ = "filebus"
 __description__ = (
     "A user space multicast named pipe implementation backed by a regular file"
@@ -90,11 +88,8 @@ class FileBus:
 
         with self._lock_filename() as lock:
 
-            with tarfile.open(self._args.filename + ".__new__", mode="w") as tar:
-                tarinfo = tar.tarinfo()
-                tarinfo.name = "from_server"
-                tarinfo.size = len(stdin_bytes)
-                tar.addfile(tarinfo, io.BytesIO(stdin_bytes))
+            with open(self._args.filename + ".__new__", mode="wb") as new_file:
+                new_file.write(stdin_bytes)
 
             os.rename(self._args.filename + ".__new__", self._args.filename)
             lock.release(force=True)
@@ -219,20 +214,14 @@ class FileBus:
                     if st.st_size > 0 and not (
                         previous_st and previous_st.st_ino == st.st_ino
                     ):
-                        with tarfile.open(
-                            self._args.filename, fileobj=fileobj, mode="r"
-                        ) as tar:
-
-                            for tarinfo in tar:
-                                if tarinfo.name == "from_server":
-                                    previous_st = st
-                                    try:
-                                        sys.stdout.buffer.write(tar.extractfile(tarinfo).read())
-                                        sys.stdout.buffer.flush()
-                                    except BrokenPipeError:
-                                        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-                                        os.kill(os.getpid(), signal.SIGPIPE)
-                                        raise
+                        previous_st = st
+                        try:
+                            sys.stdout.buffer.write(fileobj.read())
+                            sys.stdout.buffer.flush()
+                        except BrokenPipeError:
+                            signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+                            os.kill(os.getpid(), signal.SIGPIPE)
+                            raise
 
                     lock.release(force=True)
 

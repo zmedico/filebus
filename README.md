@@ -26,9 +26,9 @@ filebus --filename /tmp/urandom.filebus consumer
 
 ## Implementation details
 
-The on-disk format is a tar file which is updated via atomic rename
-while a lock is held. File locking makes it safe for multiple
-producers to concurrently produce to the same stream.
+The on-disk file is updated via atomic rename while a lock is held.
+File locking makes it safe for multiple producers to concurrently
+produce to the same stream.
 
 ## Caveats
 
