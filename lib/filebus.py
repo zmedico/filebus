@@ -251,11 +251,18 @@ class FileBus:
 
 
 def numeric_arg(arg):
-    for numeric_type in (int, float):
-        try:
-            return numeric_type(arg)
-        except Exception:
-            pass
+    if not isinstance(arg, str):
+        return arg
+
+    if "." in arg:
+        numeric_type = float
+    else:
+        numeric_type = int
+
+    try:
+        return numeric_type(arg)
+    except Exception:
+        pass
     raise TypeError("Not a number: {}".format(arg))
 
 
