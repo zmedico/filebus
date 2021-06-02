@@ -37,6 +37,7 @@ class SocketBurstDampenerTest(unittest.TestCase):
                 [
                     "filebus",
                     "--block-size=512",
+                    "--sleep-interval=0.1",
                     "--filename",
                     data_file.name,
                     "producer",
@@ -46,6 +47,7 @@ class SocketBurstDampenerTest(unittest.TestCase):
             consumer_args = parse_args(
                 [
                     "filebus",
+                    "--sleep-interval=0.1",
                     "--filename",
                     data_file.name,
                     "consumer",

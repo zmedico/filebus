@@ -242,6 +242,15 @@ class FileBus:
                 observer.join()
 
 
+def numeric_arg(arg):
+    for numeric_type in (int, float):
+        try:
+            return numeric_type(arg)
+        except Exception:
+            pass
+    raise TypeError("Not a number: {}".format(arg))
+
+
 def parse_args(argv=None):
     if argv is None:
         argv = sys.argv
@@ -281,7 +290,8 @@ def parse_args(argv=None):
         "--sleep-interval",
         action="store",
         metavar="N",
-        default=SLEEP_INTERVAL,
+        type=numeric_arg,
+        default=numeric_arg(SLEEP_INTERVAL),
         help="check for new messages at least once every N seconds",
     )
 
