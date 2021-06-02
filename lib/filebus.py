@@ -5,6 +5,7 @@ import functools
 import io
 import logging
 import os
+import stat
 import sys
 import tarfile
 
@@ -65,7 +66,7 @@ class FileBus:
 
     def _stdin_read(self, stdin, stdin_buffer, new_bytes, eof):
         try:
-            result = os.read(stdin.fileno(), 4094)
+            result = os.read(stdin.fileno(), self._args.block_size)
         except EnvironmentError:
             result = None
         if result:
@@ -101,31 +102,68 @@ class FileBus:
         # for correctness, not throughput.
         loop = asyncio.get_event_loop()
         stdin = sys.stdin.buffer
+        stdin_st = os.fstat(stdin.fileno())
         stdin_buffer = array.array("B")
-        eof = loop.create_future()
-
-        if fcntl is not None:
-            fcntl.fcntl(
-                stdin.fileno(),
-                fcntl.F_SETFL,
-                fcntl.fcntl(stdin.fileno(), fcntl.F_GETFL) | os.O_NONBLOCK,
+        async_read = None
+        maybe_async_read = (
+            self._args.blocking_read is not False
+            and fcntl is not None
+            and hasattr(os, "O_NONBLOCK")
+            and any(
+                can_async(stdin_st.st_mode)
+                for can_async in (stat.S_ISCHR, stat.S_ISFIFO, stat.S_ISSOCK)
             )
-
-        while True:
-            new_bytes = loop.create_future()
-            loop.add_reader(
-                stdin.fileno(),
-                functools.partial(
-                    self._stdin_read, stdin, stdin_buffer, new_bytes, eof
-                ),
-            )
+        )
+        if maybe_async_read:
             try:
-                await asyncio.wait([new_bytes], timeout=self._args.sleep_interval)
-                logging.debug(
-                    "producer_loop post wait: len(stdin_buffer): %s new_bytes: %s",
-                    len(stdin_buffer),
-                    new_bytes.result() if new_bytes.done() else False,
+                fcntl.fcntl(
+                    stdin.fileno(),
+                    fcntl.F_SETFL,
+                    fcntl.fcntl(stdin.fileno(), fcntl.F_GETFL) | os.O_NONBLOCK,
                 )
+            except Exception:
+                logging.exception(
+                    "async read disabled due to fcntl exception:",
+                )
+            else:
+                try:
+                    loop.add_reader(
+                        stdin.fileno(),
+                        lambda: None,
+                    )
+                except Exception:
+                    logging.exception(
+                        "async read disabled due to add_reader exception:",
+                    )
+                else:
+                    async_read = True
+
+                loop.remove_reader(stdin.fileno())
+
+        eof = loop.create_future()
+        while not (loop.is_closed() or eof.done()):
+
+            new_bytes = loop.create_future()
+            if async_read:
+                loop.add_reader(
+                    stdin.fileno(),
+                    functools.partial(
+                        self._stdin_read, stdin, stdin_buffer, new_bytes, eof
+                    ),
+                )
+            try:
+                if async_read:
+                    await asyncio.wait([new_bytes], timeout=self._args.sleep_interval)
+                    logging.debug(
+                        "producer_loop post wait: len(stdin_buffer): %s new_bytes: %s",
+                        len(stdin_buffer),
+                        new_bytes.result() if new_bytes.done() else False,
+                    )
+                else:
+                    self._stdin_read(stdin, stdin_buffer, new_bytes, eof)
+                    if not new_bytes.result():
+                        break
+
                 if len(stdin_buffer):
                     if (
                         not new_bytes.done()
@@ -134,17 +172,14 @@ class FileBus:
                     ):
                         await self._flush_buffer(stdin_buffer)
 
-                if new_bytes.done():
-                    if eof.done():
-                        if len(stdin_buffer):
-                            await self._flush_buffer(stdin_buffer)
-                        break
-
-                else:
+                if not new_bytes.done():
                     await new_bytes
             finally:
                 if not loop.is_closed():
                     new_bytes.done() or new_bytes.cancel()
+
+        if stdin_buffer:
+            await self._flush_buffer(stdin_buffer)
 
     def _file_modified_callback(self, event):
         self._file_modified_future.done() or self._file_modified_future.set_result(True)
@@ -264,6 +299,13 @@ def parse_args(argv=None):
         "producer", help="connect producer side of stream"
     )
     producer_parser.set_defaults(func=lambda args: setattr(args, "command", "producer"))
+    producer_parser.add_argument(
+        "--blocking-read",
+        action="store_true",
+        dest="blocking_read",
+        default=None,
+        help="blocking read from input (clear the O_NONBLOCK flag)",
+    )
     consumer_parser = subparsers.add_parser(
         "consumer", help="connect consumer side of stream"
     )

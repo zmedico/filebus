@@ -25,23 +25,27 @@ class SocketBurstDampenerTest(unittest.TestCase):
     def test_filebus(self):
         asyncio.get_event_loop().run_until_complete(self._test_async())
 
-    async def _test_async(self):
+    def test_filebus_blocking_read(self):
+        asyncio.get_event_loop().run_until_complete(
+            self._test_async(force_blocking_read=True)
+        )
+
+    async def _test_async(self, force_blocking_read=False):
         with tempfile.NamedTemporaryFile() as data_file:
             input_string = b"hello world\n"
             producer_args = parse_args(
                 [
                     "filebus",
-                    "-v",
                     "--block-size=512",
                     "--filename",
                     data_file.name,
                     "producer",
                 ]
+                + (["--blocking-read"] if force_blocking_read else [])
             )
             consumer_args = parse_args(
                 [
                     "filebus",
-                    "-v",
                     "--filename",
                     data_file.name,
                     "consumer",
