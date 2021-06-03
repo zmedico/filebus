@@ -180,7 +180,9 @@ class FileBus:
             await self._flush_buffer(stdin_buffer)
 
     def _file_modified_callback(self, event):
-        self._file_modified_future.done() or self._file_modified_future.set_result(True)
+        self._file_modified_future is None or self._file_modified_future.done() or self._file_modified_future.set_result(
+            True
+        )
         logging.debug("Modified: %s", event.src_path)
 
     async def consumer_loop(self):
