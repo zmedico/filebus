@@ -76,6 +76,8 @@ class FileBus:
             new_bytes.set_result(bool(result))
         result != b"" or eof.done() or eof.set_result(result)
         logging.debug("_stdin_read: %s", repr(result))
+        if eof.done():
+            asyncio.get_event_loop().remove_reader(stdin.fileno())
 
     def _lock_filename(self):
         lock = filelock.FileLock(self._args.filename + ".lock")
