@@ -22,7 +22,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __project__ = "filebus"
 __description__ = (
     "A user space multicast named pipe implementation backed by a regular file"
@@ -53,7 +53,11 @@ class FileBus:
 
     @property
     def _file_monitoring(self):
-        return self._args.file_monitoring and watchdog is not None
+        return (
+            self._args.file_monitoring
+            and watchdog is not None
+            and not self._args.back_pressure
+        )
 
     def __enter__(self):
         return self
@@ -85,14 +89,30 @@ class FileBus:
         return lock
 
     async def _flush_buffer(self, stdin_buffer):
-        stdin_bytes = stdin_buffer.tobytes()
-        del stdin_buffer[:]
+
+        if self._args.back_pressure:
+            while os.path.exists(self._args.filename):
+                while os.path.exists(self._args.filename):
+                    # FIXME: support file monitoring
+                    await asyncio.sleep(self._args.sleep_interval)
+                with self._lock_filename() as lock:
+                    if os.path.exists(self._args.filename):
+                        lock.release(force=True)
+                        continue
+
+                    stdin_bytes = stdin_buffer.tobytes()
+                    del stdin_buffer[:]
+                    with open(self._args.filename + ".__new__", mode="wb") as new_file:
+                        new_file.write(stdin_bytes)
+                    os.rename(self._args.filename + ".__new__", self._args.filename)
+                    lock.release(force=True)
+                    return
 
         with self._lock_filename() as lock:
-
+            stdin_bytes = stdin_buffer.tobytes()
+            del stdin_buffer[:]
             with open(self._args.filename + ".__new__", mode="wb") as new_file:
                 new_file.write(stdin_bytes)
-
             os.rename(self._args.filename + ".__new__", self._args.filename)
             lock.release(force=True)
 
@@ -143,6 +163,16 @@ class FileBus:
         eof = loop.create_future()
         while not (loop.is_closed() or eof.done()):
 
+            if self._args.back_pressure:
+                try:
+                    os.stat(self._args.filename)
+                except FileNotFoundError:
+                    pass
+                else:
+                    # FIXME: support file monitoring
+                    await asyncio.sleep(self._args.sleep_interval)
+                    continue
+
             new_bytes = loop.create_future()
             if async_read:
                 loop.add_reader(
@@ -170,6 +200,7 @@ class FileBus:
                         or not new_bytes.result()
                         or len(stdin_buffer) >= self._args.block_size
                     ):
+                        loop.remove_reader(stdin.fileno())
                         await self._flush_buffer(stdin_buffer)
 
                 if not new_bytes.done():
@@ -180,6 +211,28 @@ class FileBus:
 
         if stdin_buffer:
             await self._flush_buffer(stdin_buffer)
+
+        # Write the EOF buffer.
+        if self._args.back_pressure:
+            while not loop.is_closed():
+                try:
+                    os.stat(self._args.filename)
+                except FileNotFoundError:
+                    with self._lock_filename() as lock:
+                        if os.path.exists(self._args.filename):
+                            # Too late to report EOF.
+                            lock.release(force=True)
+                            return
+                        # Write an empty buffer to indicate EOF.
+                        with open(self._args.filename + ".__new__", "wb"):
+                            pass
+                        os.rename(self._args.filename + ".__new__", self._args.filename)
+                        lock.release(force=True)
+                        break
+                else:
+                    # FIXME: support file monitoring
+                    await asyncio.sleep(self._args.sleep_interval)
+                    continue
 
     def _file_modified_callback(self, event):
         self._file_modified_future is None or self._file_modified_future.done() or self._file_modified_future.set_result(
@@ -204,6 +257,28 @@ class FileBus:
                 except FileNotFoundError:
                     pass
                 else:
+                    if self._args.back_pressure:
+                        with self._lock_filename() as lock, open(
+                            self._args.filename, "rb"
+                        ) as fileobj:
+                            content = fileobj.read()
+                            if content:
+                                try:
+                                    sys.stdout.buffer.write(content)
+                                    sys.stdout.buffer.flush()
+                                except BrokenPipeError:
+                                    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+                                    os.kill(os.getpid(), signal.SIGPIPE)
+                                    raise
+
+                            # remove the file in order relieve back pressure
+                            os.unlink(self._args.filename)
+                            lock.release(force=True)
+                            if not content:
+                                # EOF marker for back pressure protocol
+                                return
+                            continue
+
                     # The observer will raise a FileNotFoundError if the file does not exist
                     # yet, so we do not start it until the above os.stat call succeeds.
                     if self._file_monitoring and observer is None:
@@ -224,20 +299,35 @@ class FileBus:
                         and previous_st.st_ino == st.st_ino
                         and previous_st.st_dev == st.st_dev
                     ):
-                        with self._lock_filename() as lock, open(
-                            self._args.filename, "rb"
-                        ) as fileobj:
-                            st = os.fstat(fileobj.fileno())
-                            previous_st = st
-                            try:
-                                sys.stdout.buffer.write(fileobj.read())
-                                sys.stdout.buffer.flush()
-                            except BrokenPipeError:
-                                signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-                                os.kill(os.getpid(), signal.SIGPIPE)
-                                raise
+                        with self._lock_filename() as lock:
+                            if not os.path.exists(self._args.filename):
+                                lock.release(force=True)
+                                # FIXME: support file monitoring
+                                await asyncio.sleep(self._args.sleep_interval)
+                                continue
 
-                            lock.release(force=True)
+                            with open(self._args.filename, "rb") as fileobj:
+                                st = os.fstat(fileobj.fileno())
+
+                                # EOF marker for back pressure protocol
+                                if self._args.back_pressure and st.st_size == 0:
+                                    os.unlink(self._args.filename)
+                                    lock.release(force=True)
+                                    return
+
+                                previous_st = st
+                                try:
+                                    sys.stdout.buffer.write(fileobj.read())
+                                    sys.stdout.buffer.flush()
+                                except BrokenPipeError:
+                                    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+                                    os.kill(os.getpid(), signal.SIGPIPE)
+                                    raise
+
+                                if self._args.back_pressure:
+                                    # remove the file in order to relieve back pressure
+                                    os.unlink(self._args.filename)
+                                lock.release(force=True)
 
                 if self._file_modified_future is None:
                     await asyncio.sleep(self._args.sleep_interval)
@@ -251,7 +341,10 @@ class FileBus:
         finally:
             if observer is not None:
                 observer.stop()
-                observer.join()
+                try:
+                    observer.join()
+                except RuntimeError:
+                    pass
 
 
 def numeric_arg(arg):
@@ -281,12 +374,27 @@ def parse_args(argv=None):
     )
 
     root_parser.add_argument(
+        "--back-pressure",
+        action="store_true",
+        dest="back_pressure",
+        default=False,
+        help="enable lossless back pressure protocol (unconsumed chunks cause producers to block)",
+    )
+
+    root_parser.add_argument(
         "--block-size",
         action="store",
         metavar="N",
         type=int,
         default=BUFSIZE,
         help="maximum block size in units of bytes",
+    )
+
+    root_parser.add_argument(
+        "--lossless",
+        action="store_true",
+        dest="back_pressure",
+        help="an alias for --back-pressure",
     )
 
     root_parser.add_argument(

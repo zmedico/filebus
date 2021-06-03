@@ -21,21 +21,32 @@ except ImportError:
     from filebus import FileBus, parse_args
 
 
-class SocketBurstDampenerTest(unittest.TestCase):
+class FileBusTest(unittest.TestCase):
     def test_filebus(self):
         asyncio.get_event_loop().run_until_complete(self._test_async())
+
+    def test_filebus_back_pressure(self):
+        asyncio.get_event_loop().run_until_complete(
+            self._test_async(back_pressure=True)
+        )
 
     def test_filebus_blocking_read(self):
         asyncio.get_event_loop().run_until_complete(
             self._test_async(force_blocking_read=True)
         )
 
-    async def _test_async(self, force_blocking_read=False):
+    async def _test_async(self, back_pressure=False, force_blocking_read=False):
         with tempfile.NamedTemporaryFile() as data_file:
+            if back_pressure:
+                os.unlink(data_file.name)
+
             input_string = b"hello world\n"
             producer_args = parse_args(
                 [
                     "filebus",
+                ]
+                + (["--back-pressure"] if back_pressure else [])
+                + [
                     "--block-size=512",
                     "--sleep-interval=0.1",
                     "--filename",
@@ -47,6 +58,9 @@ class SocketBurstDampenerTest(unittest.TestCase):
             consumer_args = parse_args(
                 [
                     "filebus",
+                ]
+                + (["--back-pressure"] if back_pressure else [])
+                + [
                     "--sleep-interval=0.1",
                     "--filename",
                     data_file.name,
@@ -83,6 +97,13 @@ class SocketBurstDampenerTest(unittest.TestCase):
             result = os.read(pr, len(input_string))
             os.close(pr)
             self.assertEqual(result, input_string)
+
+            if back_pressure:
+                self.assertEqual(False, os.path.exists(data_file.name))
+                # Suppress FileNotFoundError in NamedTemporaryFile finalizer.
+                with open(data_file.name, "wb"):
+                    pass
+
             producer_proc.terminate()
             consumer_proc.terminate()
 
