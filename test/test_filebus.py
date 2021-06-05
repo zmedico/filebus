@@ -15,7 +15,7 @@ try:
 except ImportError:
     sys.path.append(
         os.path.join(
-            os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib"
+            os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "lib/python"
         )
     )
     from filebus import FileBus, parse_args

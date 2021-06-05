@@ -8,7 +8,7 @@ from setuptools import (
     setup,
 )
 
-sys.path.insert(0, "lib")
+sys.path.insert(0, "lib/python")
 from filebus import (
     __author__,
     __description__,
@@ -17,7 +17,7 @@ from filebus import (
     __version__,
 )
 
-sys.path.remove("lib")
+sys.path.remove("lib/python")
 
 
 class PyTest(Command):
@@ -60,7 +60,7 @@ setup(
     author_email=__email__,
     cmdclass={"test": PyTest},
     install_requires=["filelock"],
-    package_dir={"": "lib"},
+    package_dir={"": "lib/python"},
     py_modules=["filebus"],
     entry_points={
         "console_scripts": "filebus = filebus:main",
