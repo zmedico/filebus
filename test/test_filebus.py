@@ -22,10 +22,12 @@ except ImportError:
 
 class FileBusTest(unittest.TestCase):
 
+    impl = "python"
+
     def test_filebus(self):
         asyncio.get_event_loop().run_until_complete(self._test_async())
 
-    def _test_filebus_blocking_read(self):
+    def test_filebus_blocking_read(self):
         asyncio.get_event_loop().run_until_complete(
             self._test_async(force_blocking_read=True)
         )
@@ -41,6 +43,8 @@ class FileBusTest(unittest.TestCase):
                 [
                     sys.executable,
                     filebus.__file__,
+                    "--impl",
+                    self.impl,
                 ]
                 + (["--back-pressure"] if back_pressure else [])
                 + [
@@ -57,6 +61,8 @@ class FileBusTest(unittest.TestCase):
                 [
                     sys.executable,
                     filebus.__file__,
+                    "--impl",
+                    self.impl,
                 ]
                 + (["--back-pressure"] if back_pressure else [])
                 + [
@@ -92,14 +98,11 @@ class FileBusTest(unittest.TestCase):
             os.close(pr)
             self.assertEqual(result, input_string)
 
+            await consumer_proc.wait()
+            await producer_proc.wait()
+
             if back_pressure:
                 self.assertEqual(False, os.path.exists(data_file.name))
-                # Suppress FileNotFoundError in NamedTemporaryFile finalizer.
-                with open(data_file.name, "wb"):
-                    pass
-
-            await producer_proc.wait()
-            await consumer_proc.wait()
         finally:
             try:
                 os.unlink(data_file.name)
@@ -113,6 +116,10 @@ class FileBusTest(unittest.TestCase):
             stdout=pw if command == "consumer" else None
         )
         return proc
+
+
+class FileBusBashTest(FileBusTest):
+    impl = "bash"
 
 
 if __name__ == "__main__":

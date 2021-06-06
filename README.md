@@ -51,11 +51,21 @@ certainly lose chunks at high data rates, but lower data rates should
 be lossless, and consumers should always be able to observe the most
 recent chunk if it has not been quickly replaced by another.
 
+## Alternative implementations
+
+The bash implementation currently currently reads newline delimited
+chunks, whereas the python implementation uses the `--sleep-interval`
+and `--block-size` arguments to delimit chunks. The python
+implementation is agnostic to the underlying stream in the sense that
+it explicitly does not interpret any stream content as a delimiter,
+which is a desirable property for filebus, but not essential for many
+use cases.
+
 ## Usage
 ```
-usage: filebus [-h] [--back-pressure] [--block-size N] [--lossless]
-               [--no-file-monitoring] [--filename FILE] [--sleep-interval N]
-               [-v]
+usage: filebus [-h] [--back-pressure] [--block-size N]
+               [--impl {bash,python}] [--lossless] [--no-file-monitoring]
+               [--filename FILE] [--sleep-interval N] [-v]
                {producer,consumer} ...
 
   filebus 0.2.0
@@ -71,10 +81,16 @@ optional arguments:
   --back-pressure       enable lossless back pressure protocol (unconsumed
                         chunks cause producers to block)
   --block-size N        maximum block size in units of bytes
+  --impl {bash,python}, --implementation {bash,python}
+                        choose an alternative filebus implementation
+                        (alternative implementations interoperate with
+                        eachother)
   --lossless            an alias for --back-pressure
   --no-file-monitoring  disable filesystem event monitoring
   --filename FILE       path of the data file (the producer updates it via
                         atomic rename)
-  --sleep-interval N    check for new messages at least once every N seconds
-  -v, --verbose         verbose logging (each occurence increases verbosity)
+  --sleep-interval N    check for new messages at least once every N
+                        seconds
+  -v, --verbose         verbose logging (each occurence increases
+                        verbosity)
 ```

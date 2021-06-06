@@ -2,11 +2,14 @@ import argparse
 import array
 import asyncio
 import functools
+import glob
 import logging
 import os
+import shutil
 import signal
 import stat
 import sys
+import sysconfig
 
 try:
     import fcntl
@@ -22,7 +25,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __project__ = "filebus"
 __description__ = (
     "A user space multicast named pipe implementation backed by a regular file"
@@ -371,6 +374,17 @@ def parse_args(argv=None):
         prog=os.path.basename(argv[0]),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         description="  {} {}\n  {}".format(__project__, __version__, __description__),
+        add_help=False,
+    )
+    root_parser.set_defaults(func=lambda args: None)
+
+    root_parser.add_argument(
+        "-h",
+        "--help",
+        dest="help",
+        action="store_true",
+        default=argparse.SUPPRESS,
+        help="show this help message and exit",
     )
 
     root_parser.add_argument(
@@ -388,6 +402,16 @@ def parse_args(argv=None):
         type=int,
         default=BUFSIZE,
         help="maximum block size in units of bytes",
+    )
+
+    root_parser.add_argument(
+        "--impl",
+        "--implementation",
+        dest="impl",
+        action="store",
+        choices=("bash", "python"),
+        default="python",
+        help="choose an alternative filebus implementation (alternative implementations interoperate with eachother)",
     )
 
     root_parser.add_argument(
@@ -451,6 +475,16 @@ def parse_args(argv=None):
     args = root_parser.parse_args(argv[1:])
     args.func(args)
 
+    if getattr(args, "help", False) and not args.impl == "bash":
+        if getattr(args, "command", None) == "consumer":
+            current_parser = consumer_parser
+        elif getattr(args, "command", None) == "producer":
+            current_parser = producer_parser
+        else:
+            current_parser = root_parser
+        current_parser.print_help()
+        current_parser.exit()
+
     logging.basicConfig(
         level=(logging.getLogger().getEffectiveLevel() - 10 * args.verbosity),
         format="[%(levelname)-4s] %(message)s",
@@ -459,8 +493,46 @@ def parse_args(argv=None):
     return args
 
 
-def main():
-    args = parse_args()
+def filebus_bash_impl(args):
+    bash_prog = shutil.which("bash")
+    if bash_prog is None:
+        raise FileNotFoundError("bash")
+    search_paths = [
+        os.path.join(sys.prefix, "libexec", "filebus", "filebus.bash"),
+    ]
+    if not __file__.startswith(sysconfig.get_path("purelib") + "/"):
+        source_path = os.path.join(
+            os.path.realpath(__file__).rpartition("/lib/")[0], "lib/bash/filebus.bash"
+        )
+        if not os.path.isfile(source_path):
+            source_path = next(
+                glob.iglob(
+                    os.path.join(
+                        os.path.realpath(__file__).rpartition("/lib/")[0],
+                        "../filebus-*/lib/bash/filebus.bash",
+                    )
+                ),
+                None,
+            )
+        if source_path is not None:
+            search_paths.insert(0, source_path)
+
+    for filebus_bash in search_paths:
+        if os.path.isfile(filebus_bash):
+            return [bash_prog, filebus_bash] + args
+
+    raise FileNotFoundError("filebus.bash" + " " + repr(search_paths))
+
+
+def main(argv=None):
+    if argv is None:
+        argv = sys.argv
+
+    args = parse_args(argv=argv)
+    if args.impl == "bash":
+        new_argv = filebus_bash_impl(argv[1:])
+        os.execvp(new_argv[0], new_argv)
+
     loop = asyncio.get_event_loop()
 
     try:
