@@ -112,7 +112,10 @@ _filebus_command-perform-producer() {
 			fi
 
 			if (( eof == 1 )) || (( read_ready == 0 && buffer_len >= 0 )) || (( buffer_len >= filebus_args[block_size] )); then
+				# shellcheck disable=SC2094
 				({
+					flock --exclusive 200 || exit 1
+					[[ "${filebus_args[filename]}.lock" -ef /dev/fd/200 ]] || exit 1
 					(
 						for line in "${buffer[@]}"; do
 							printf -- '%s\n' "$line" || exit 1
@@ -194,6 +197,7 @@ _filebus_command-perform-consumer() {
 			continue
 		fi
 		if (( filebus_args[back_pressure] == 1 )); then
+			# shellcheck disable=SC2094
 			(
 				{
 					flock --exclusive 200 || exit 1

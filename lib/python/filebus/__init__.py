@@ -25,7 +25,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 __project__ = "filebus"
 __description__ = (
     "A user space multicast named pipe implementation backed by a regular file"
