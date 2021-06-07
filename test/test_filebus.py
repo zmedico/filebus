@@ -1,5 +1,4 @@
 import asyncio
-import multiprocessing
 import os
 import sys
 import tempfile
@@ -22,6 +21,7 @@ except ImportError:
 
 
 class FileBusTest(unittest.TestCase):
+
     def test_filebus(self):
         asyncio.get_event_loop().run_until_complete(self._test_async())
 
@@ -31,7 +31,8 @@ class FileBusTest(unittest.TestCase):
         )
 
     async def _test_async(self, back_pressure=True, force_blocking_read=False):
-        with tempfile.NamedTemporaryFile() as data_file:
+        data_file = tempfile.NamedTemporaryFile(delete=False).__enter__()
+        try:
             if back_pressure:
                 os.unlink(data_file.name)
 
@@ -99,6 +100,11 @@ class FileBusTest(unittest.TestCase):
 
             await producer_proc.wait()
             await consumer_proc.wait()
+        finally:
+            try:
+                os.unlink(data_file.name)
+            except OSError:
+                pass
 
     async def _subprocess(self, command, args, pr, pw):
         proc = await asyncio.create_subprocess_exec(
