@@ -25,15 +25,25 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.3.1"
-__project__ = "filebus"
+__version__ = "0.3.2"
+__project__ = "pipebus" if sys.argv and "pipebus" in sys.argv[0] else "filebus"
 __description__ = (
     "A user space multicast named pipe implementation backed by a regular file"
 )
 __author__ = "Zac Medico"
 __email__ = "<zmedico@gmail.com>"
+__classifiers__ = (
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Unix Shell",
+)
 __copyright__ = "Copyright 2021 Zac Medico"
 __license__ = "Apache-2.0"
+__url__ = "https://github.com/pipebus/filebus"
+__project_urls__ = (
+    ("Bug Tracker", "https://github.com/pipebus/filebus/issues"),
+)
 
 BUFSIZE = 4096
 SLEEP_INTERVAL = 0.1

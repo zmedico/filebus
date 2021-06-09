@@ -11,9 +11,12 @@ from setuptools import (
 sys.path.insert(0, "lib/python")
 from filebus import (
     __author__,
+    __classifiers__,
     __description__,
     __email__,
     __project__,
+    __project_urls__,
+    __url__,
     __version__,
 )
 
@@ -92,6 +95,9 @@ setup(
     long_description_content_type="text/markdown",
     author=__author__,
     author_email=__email__,
+    url=__url__,
+    project_urls=dict(__project_urls__),
+    classifiers=list(__classifiers__),
     cmdclass={
         "test": PyTest,
     },
@@ -106,7 +112,10 @@ setup(
     package_dir={"": "lib/python"},
     packages=list(find_packages()),
     entry_points={
-        "console_scripts": "filebus = filebus:main",
+        "console_scripts": [
+            "filebus = filebus:main",
+            "pipebus = filebus:main",
+        ]
     },
     python_requires=">=3.6",
 )
