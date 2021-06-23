@@ -57,7 +57,12 @@ class PyTest(Command):
 
 def prefix_data_files(locations):
     for dest_prefix, source_path in locations:
+        source_path = os.path.abspath(source_path)
+
         for root, dirs, files in os.walk(source_path):
+            root_offset = root[len(source_path) :].lstrip("/")
+            dest_path = os.path.join(dest_prefix, root_offset)
+
             abs_files = []
             for x in files:
                 if not x.endswith(".bash"):
@@ -71,9 +76,6 @@ def prefix_data_files(locations):
                         with open(x, "wt") as f:
                             f.write(content)
 
-            dest_path = os.path.join(
-                dest_prefix, root.partition(source_path)[2].lstrip("/")
-            )
             yield (dest_path, abs_files)
 
 
