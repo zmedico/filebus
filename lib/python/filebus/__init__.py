@@ -139,7 +139,7 @@ class FileBus:
         stdin_buffer = array.array("B")
         async_read = None
         maybe_async_read = (
-            self._args.blocking_read is not False
+            self._args.blocking_read is not True
             and fcntl is not None
             and hasattr(os, "O_NONBLOCK")
             and any(
