@@ -269,10 +269,14 @@ class FileBus:
                     pass
                 else:
                     if self._args.back_pressure:
-                        with self._lock_filename() as lock, open(
-                            self._args.filename, "rb"
-                        ) as fileobj:
-                            content = fileobj.read()
+                        with self._lock_filename() as lock:
+                            try:
+                                fileobj = open(self._args.filename, "rb")
+                            except FileNotFoundError:
+                                lock.release(force=True)
+                                continue
+                            with fileobj:
+                                content = fileobj.read()
                             if content:
                                 try:
                                     sys.stdout.buffer.write(content)
