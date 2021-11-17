@@ -41,9 +41,7 @@ __classifiers__ = (
 __copyright__ = "Copyright 2021 Zac Medico"
 __license__ = "Apache-2.0"
 __url__ = "https://github.com/pipebus/filebus"
-__project_urls__ = (
-    ("Bug Tracker", "https://github.com/pipebus/filebus/issues"),
-)
+__project_urls__ = (("Bug Tracker", "https://github.com/pipebus/filebus/issues"),)
 
 BUFSIZE = 4096
 SLEEP_INTERVAL = 0.1
