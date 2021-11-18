@@ -324,12 +324,6 @@ class FileBus:
                             with open(self._args.filename, "rb") as fileobj:
                                 st = os.fstat(fileobj.fileno())
 
-                                # EOF marker for back pressure protocol
-                                if self._args.back_pressure and st.st_size == 0:
-                                    os.unlink(self._args.filename)
-                                    lock.release(force=True)
-                                    return
-
                                 previous_st = st
                                 try:
                                     sys.stdout.buffer.write(fileobj.read())
@@ -339,9 +333,6 @@ class FileBus:
                                     os.kill(os.getpid(), signal.SIGPIPE)
                                     raise
 
-                                if self._args.back_pressure:
-                                    # remove the file in order to relieve back pressure
-                                    os.unlink(self._args.filename)
                                 lock.release(force=True)
 
                 if self._file_modified_future is None:
