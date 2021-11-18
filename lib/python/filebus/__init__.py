@@ -12,6 +12,11 @@ import sys
 import sysconfig
 
 try:
+    asyncio_run = asyncio.run
+except AttributeError:
+    asyncio_run = asyncio.get_event_loop().run_until_complete
+
+try:
     import fcntl
 except ImportError:
     fcntl = None
@@ -536,15 +541,8 @@ def main(argv=None):
         new_argv = filebus_bash_impl(argv[1:])
         os.execvp(new_argv[0], new_argv)
 
-    loop = asyncio.get_event_loop()
-
-    try:
-        with FileBus(args) as bus:
-            loop.run_until_complete(bus.io_loop())
-    except KeyboardInterrupt:
-        loop.stop()
-    finally:
-        loop.close()
+    with FileBus(args) as bus:
+        asyncio_run(bus.io_loop())
 
 
 if __name__ == "__main__":
