@@ -20,17 +20,26 @@ except ImportError:
     import filebus
 
 
+try:
+    asyncio_run = asyncio.run
+except AttributeError:
+    asyncio_run = asyncio.get_event_loop().run_until_complete
+
+try:
+    get_running_loop = asyncio.get_running_loop
+except AttributeError:
+    get_running_loop = asyncio.get_event_loop
+
+
 class FileBusTest(unittest.TestCase):
 
     impl = "python"
 
     def test_filebus(self):
-        asyncio.get_event_loop().run_until_complete(self._test_async())
+        asyncio_run(self._test_async())
 
     def test_filebus_blocking_read(self):
-        asyncio.get_event_loop().run_until_complete(
-            self._test_async(force_blocking_read=True)
-        )
+        asyncio_run(self._test_async(force_blocking_read=True))
 
     async def _test_async(self, back_pressure=True, force_blocking_read=False):
         data_file = tempfile.NamedTemporaryFile(delete=False).__enter__()
@@ -83,7 +92,7 @@ class FileBusTest(unittest.TestCase):
             producer_proc = await self._subprocess("consumer", consumer_args, pr, pw)
             os.close(pw)
 
-            loop = asyncio.get_event_loop()
+            loop = get_running_loop()
             consumer_reader = loop.create_future()
             loop.add_reader(
                 pr,
