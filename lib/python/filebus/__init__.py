@@ -107,7 +107,7 @@ class FileBus:
     async def _flush_buffer(self, stdin_buffer):
 
         if self._args.back_pressure:
-            while os.path.exists(self._args.filename):
+            while True:
                 while os.path.exists(self._args.filename):
                     # FIXME: support file monitoring
                     await asyncio.sleep(self._args.sleep_interval)
