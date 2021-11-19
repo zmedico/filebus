@@ -1,0 +1,2 @@
+include setup.py
+include lib/bash/*.bash
