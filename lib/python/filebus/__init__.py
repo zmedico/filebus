@@ -210,17 +210,20 @@ class FileBus:
                     if not new_bytes.result():
                         break
 
+                if new_bytes.done():
+                    loop.remove_reader(stdin.fileno())
+
                 if len(stdin_buffer):
                     if (
                         not new_bytes.done()
                         or not new_bytes.result()
                         or len(stdin_buffer) >= self._args.block_size
                     ):
-                        loop.remove_reader(stdin.fileno())
                         await self._flush_buffer(stdin_buffer)
 
                 if not new_bytes.done():
                     await new_bytes
+                    loop.remove_reader(stdin.fileno())
             finally:
                 if not loop.is_closed():
                     new_bytes.done() or new_bytes.cancel()
