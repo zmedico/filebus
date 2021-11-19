@@ -111,7 +111,7 @@ _filebus_command-perform-producer() {
 				return 0
 			fi
 
-			if (( eof == 1 )) || (( read_ready == 0 && buffer_len >= 0 )) || (( buffer_len >= filebus_args[block_size] )); then
+			if (( eof == 1 )) || (( read_ready == 0 && buffer_len > 0 )) || (( buffer_len >= filebus_args[block_size] )); then
 				# shellcheck disable=SC2094
 				({
 					flock --exclusive 200 || exit 1
