@@ -112,10 +112,19 @@ _filebus_command-perform-producer() {
 			fi
 
 			if (( eof == 1 )) || (( read_ready == 0 && buffer_len > 0 )) || (( buffer_len >= filebus_args[block_size] )); then
+				while true; do
+				if (( filebus_args[back_pressure] == 1 )); then
+					while [[ -e ${filebus_args[filename]} ]]; do
+						sleep "${filebus_args[sleep_interval]}" || return
+					done
+				fi
 				# shellcheck disable=SC2094
 				({
 					flock --exclusive 200 || exit 1
 					[[ "${filebus_args[filename]}.lock" -ef /dev/fd/200 ]] || exit 1
+					if (( filebus_args[back_pressure] == 1 )) && [[ -e ${filebus_args[filename]} ]]; then
+						exit 3 # back pressure blocking
+					fi
 					(
 						for line in "${buffer[@]}"; do
 							printf -- '%s\n' "$line" || exit 1
@@ -133,6 +142,7 @@ _filebus_command-perform-producer() {
 					0)
 						buffer=()
 						buffer_len=0
+						break
 						;;
 					1)
 						return 1
@@ -140,7 +150,12 @@ _filebus_command-perform-producer() {
 					2)	# back pressure protocol EOF marker
 						return 0
 						;;
+					3)	# back pressure blocking
+						sleep "${filebus_args[sleep_interval]}" || return
+						continue
+						;;
 				esac
+				done
 			fi
 			if (( buffer_len == 0 )); then
 				sleep "${filebus_args[sleep_interval]}" || return
