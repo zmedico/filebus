@@ -17,6 +17,11 @@ except AttributeError:
     asyncio_run = asyncio.get_event_loop().run_until_complete
 
 try:
+    get_running_loop = asyncio.get_running_loop
+except AttributeError:
+    get_running_loop = asyncio.get_event_loop
+
+try:
     import fcntl
 except ImportError:
     fcntl = None
@@ -97,7 +102,7 @@ class FileBus:
         result != b"" or eof.done() or eof.set_result(result)
         logging.debug("_stdin_read: %s", repr(result))
         if eof.done():
-            asyncio.get_event_loop().remove_reader(stdin.fileno())
+            get_running_loop().remove_reader(stdin.fileno())
 
     def _lock_filename(self):
         lock = filelock.FileLock(self._args.filename + ".lock")
@@ -136,7 +141,7 @@ class FileBus:
 
         # NOTE: This is a reference implementation which is optimized
         # for correctness, not throughput.
-        loop = asyncio.get_event_loop()
+        loop = get_running_loop()
         stdin = sys.stdin.buffer
         stdin_st = os.fstat(stdin.fileno())
         stdin_buffer = array.array("B")
@@ -252,7 +257,7 @@ class FileBus:
         logging.debug("Modified: %s", event.src_path)
 
     async def consumer_loop(self):
-        loop = asyncio.get_event_loop()
+        loop = get_running_loop()
         observer = None
 
         try:
