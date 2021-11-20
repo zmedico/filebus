@@ -208,8 +208,6 @@ class FileBus:
                     loop.remove_reader(stdin.fileno())
                 else:
                     self._stdin_read(stdin, stdin_buffer, new_bytes, eof)
-                    if not new_bytes.result():
-                        break
 
                 if len(stdin_buffer):
                     if (
