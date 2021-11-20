@@ -35,7 +35,7 @@ except ImportError:
     watchdog = None
     FileSystemEventHandler = object
 
-__version__ = "0.3.4"
+__version__ = "0.3.5"
 __project__ = "pipebus" if sys.argv and "pipebus" in sys.argv[0] else "filebus"
 __description__ = (
     "A user space multicast named pipe implementation backed by a regular file"
